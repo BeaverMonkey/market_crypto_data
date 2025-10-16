@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto & Stock Tracker - Xeneon Edge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            align-items: center;
+	          gap: 24px;	
+            height: 100%;
+            padding: 0 24px;
+        }
+
+        .asset-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 18px 12px;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: none;
+        }
+
+        .asset-card:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .asset-card.bitcoin {
+            border-top: 4px solid #f7931a;
+        }
+
+        .asset-card.ethereum {
+            border-top: 4px solid #627eea;
+        }
+
+        .asset-card.litecoin {
+            border-top: 4px solid #345d9d;
+        }
+
+        .asset-card.dow {
+            border-top: 4px solid #00b4d8;
+        }
+
+        .asset-card.sp500 {
+            border-top: 4px solid #90e0ef;
+        }
+
+	.asset-card, .settings-button {
+            pointer-events: auto;
+        }
+
+        .asset-symbol {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+
+        .asset-name {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .asset-price {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .asset-change {
+            font-size: 16px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .asset-change.positive {
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .asset-change.negative {
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .dollar-change {
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        .loading {
+            font-size: 20px;
+            color: #aaa;
+        }
+
+        .last-update {
+            position: absolute;
+            bottom: 12px;
+            right: 20px;
+            font-size: 11px;
+            color: #fff;
+        }
+
+        .error-message {
+            color: #ff9999;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+
+        .market-status {
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .market-status.open {
+            color: #00ff88;
+        }
+
+        .market-status.closed {
+            color: #ff9999;
+        }
+
+        .api-stats {
+            position: absolute;
+            bottom: 12px;
+            left: 20px;
+            font-size: 11px;
+            color: #fff;
+            line-height: 1.6;
+        }
+
+        /* API Key Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: linear-gradient(135deg, #2d2d44 0%, #1e1e2e 100%);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            color: #00b4d8;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .modal p {
+            color: #ccc;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .modal input:focus {
+            outline: none;
+            border-color: #00b4d8;
+        }
+
+        .modal button {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            background: #00b4d8;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .modal button:hover {
+            background: #0096c7;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 180, 216, 0.4);
+        }
+
+        .modal a {
+            color: #00b4d8;
+            text-decoration: none;
+        }
+
+        .modal a:hover {
+            text-decoration: underline;
+        }
+
+        .settings-button {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .settings-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <button class="settings-button" onclick="showApiKeyModal()">⚙️ Change API Key</button>
+
+    <div class="container">
+        <div class="asset-card sp500" id="sp500">
+            <div class="asset-symbol">SPY</div>
+            <div class="asset-name">S&P 500 ETF</div>
+            <div class="asset-price loading">Loading...</div>
+            <div class="asset-change">--</div>
+            <div class="dollar-change">--</div>
+            <div class="market-status" id="sp500-status">--</div>
+        </div>
+
+        <div class="asset-card dow" id="dow">
+            <div class="asset-symbol">DIA</div>
+            <div class="asset-name">Dow Jones ETF</div>
+            <div class="asset-price loading">Loading...</div>
+            <div class="asset-change">--</div>
+            <div class="dollar-change">--</div>
+            <div class="market-status" id="dow-status">--</div>
+        </div>
+
+        <div class="asset-card bitcoin" id="bitcoin">
+            <div class="asset-symbol">BTC</div>
+            <div class="asset-name">Bitcoin</div>
+            <div class="asset-price loading">Loading...</div>
+            <div class="asset-change">--</div>
+            <div class="dollar-change">--</div>
+            <div class="market-status">&nbsp;</div>
+        </div>
+
+        <div class="asset-card ethereum" id="ethereum">
+            <div class="asset-symbol">ETH</div>
+            <div class="asset-name">Ethereum</div>
+            <div class="asset-price loading">Loading...</div>
+            <div class="asset-change">--</div>
+            <div class="dollar-change">--</div>
+            <div class="market-status">&nbsp;</div>
+        </div>
+
+        <div class="asset-card litecoin" id="litecoin">
+            <div class="asset-symbol">LTC</div>
+            <div class="asset-name">Litecoin</div>
+            <div class="asset-price loading">Loading...</div>
+            <div class="asset-change">--</div>
+            <div class="dollar-change">--</div>
+            <div class="market-status">&nbsp;</div>
+        </div>
+    </div>
+
+    <div class="last-update" id="lastUpdate"></div>
+    <div class="api-stats" id="apiStats">
+        <div>Finnhub: 0 calls today</div>
+        <div>CoinGecko: 0 calls today</div>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>🔑 Enter Your Finnhub API Key</h2>
+            <p>To display stock ETF data, you need a <strong>FREE</strong> API key from Finnhub.</p>
+            <p>👉 Get one here: <a href="https://finnhub.io/register" target="_blank">finnhub.io/register</a></p>
+            <p style="font-size: 14px; color: #888;">⚡ 60 calls/second | 30 calls/minute free tier</p>
+            <input 
+                type="text" 
+                id="apiKeyInput" 
+                placeholder="Paste your Finnhub API key here..."
+                autocomplete="off"
+            />
+            <button onclick="saveApiKey()">Save & Start Tracking</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CRYPTO CONFIGURATION & FUNCTIONS
+        // ============================================
+        
+        const CRYPTO_API = 'https://corsproxy.io/?url=https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,litecoin&vs_currencies=usd&include_24hr_change=true';
+        const CRYPTO_UPDATE_INTERVAL = 30000; // 30 seconds
+
+        async function fetchCryptoPrices() {
+            try {
+                const response = await fetch(CRYPTO_API);
+                if (!response.ok) throw new Error('Crypto API request failed');
+                
+                const data = await response.json();
+                updateCryptoDisplay(data);
+                
+                // Increment CoinGecko API call counter
+                incrementApiCall(1, 'coingecko');
+            } catch (error) {
+                console.error('Error fetching crypto prices:', error);
+                showError('bitcoin', 'API Error');
+                showError('ethereum', 'API Error');
+                showError('litecoin', 'API Error');
+            }
+        }
+
+        function updateCryptoDisplay(data) {
+            updateAssetCard('bitcoin', data.bitcoin.usd, data.bitcoin.usd_24h_change);
+            updateAssetCard('ethereum', data.ethereum.usd, data.ethereum.usd_24h_change);
+            updateAssetCard('litecoin', data.litecoin.usd, data.litecoin.usd_24h_change);
+        }
+
+        // ============================================
+        // FINNHUB CONFIGURATION & FUNCTIONS
+        // ============================================
+        
+        const ETF_UPDATE_INTERVAL = 30000; // 30 seconds
+        
+        // Market hours in Central Time
+        const MARKET_OPEN_HOUR = 8;
+        const MARKET_OPEN_MINUTE = 30;
+        const MARKET_CLOSE_HOUR = 15;
+        const AFTER_HOURS_CLOSE_HOUR = 19;
+        
+        let finnhubCallsToday = 0;
+        let coingeckoCallsToday = 0;
+        let lastResetDate = new Date().toDateString();
+        let FINNHUB_API_KEY = '';
+
+        function checkApiKey() {
+            // First check URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlKey = urlParams.get('key');
+            
+            if (urlKey) {
+                const trimmedKey = urlKey.trim();
+                if (trimmedKey.length > 0) {
+                    localStorage.setItem('finnhub_api_key', trimmedKey);
+                    FINNHUB_API_KEY = trimmedKey;
+                    return true;
+                }
+            }
+            
+            // Then check localStorage
+            const storedKey = localStorage.getItem('finnhub_api_key');
+            if (storedKey && storedKey.length > 0) {
+                FINNHUB_API_KEY = storedKey;
+                return true;
+            }
+            
+            showApiKeyModal();
+            return false;
+        }
+
+        function showApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.remove('hidden');
+        }
+
+        function hideApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            const key = input.value.trim();
+            
+            if (!key) {
+                alert('Please enter an API key!');
+                return;
+            }
+            
+            localStorage.setItem('finnhub_api_key', key);
+            FINNHUB_API_KEY = key;
+            hideApiKeyModal();
+            
+            // Start fetching data
+            fetchAllData();
+        }
+
+        async function fetchETFPrices() {
+            if (!FINNHUB_API_KEY) return;
+
+            try {
+                const spyUrl = `https://corsproxy.io/?url=https://finnhub.io/api/v1/quote?symbol=SPY&token=${FINNHUB_API_KEY}`;
+                const diaUrl = `https://corsproxy.io/?url=https://finnhub.io/api/v1/quote?symbol=DIA&token=${FINNHUB_API_KEY}`;
+                
+                const [spyResponse, diaResponse] = await Promise.all([
+                    fetch(spyUrl),
+                    fetch(diaUrl)
+                ]);
+                
+                if (!spyResponse.ok || !diaResponse.ok) {
+                    throw new Error('Finnhub API request failed');
+                }
+                
+                const spyData = await spyResponse.json();
+                const diaData = await diaResponse.json();
+                
+                // Check if we got valid data
+                if (spyData.c && diaData.c) {
+                    updateETFDisplay(spyData, diaData);
+                    incrementApiCall(2, 'finnhub');
+                } else {
+                    throw new Error('Invalid Finnhub API response - check your API key');
+                }
+            } catch (error) {
+                console.error('Error fetching ETF prices:', error);
+                
+                const diaCard = document.getElementById('dow');
+                const spyCard = document.getElementById('sp500');
+                
+                diaCard.querySelector('.asset-price').innerHTML = '<div class="error-message">Check API Key</div>';
+                spyCard.querySelector('.asset-price').innerHTML = '<div class="error-message">Check API Key</div>';
+                
+                diaCard.querySelector('.asset-change').textContent = 'Click settings ⚙️';
+                spyCard.querySelector('.asset-change').textContent = 'Click settings ⚙️';
+            }
+        }
+
+        function updateETFDisplay(spyData, diaData) {
+            try {
+                // Finnhub returns: c (current price), dp (percent change)
+                const spyPrice = spyData.c;
+                const spyChange = spyData.dp;
+                
+                const diaPrice = diaData.c;
+                const diaChange = diaData.dp;
+                
+                updateAssetCard('sp500', spyPrice, spyChange, true);
+                updateAssetCard('dow', diaPrice, diaChange, true);
+                
+                updateMarketStatus();
+            } catch (error) {
+                console.error('Error parsing ETF data:', error);
+            }
+        }
+
+        function isMarketActive() {
+            const now = new Date();
+            const day = now.getDay();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const timeInMinutes = hours * 60 + minutes;
+            
+            if (day === 0 || day === 6) {
+                return false;
+            }
+            
+            const marketOpen = MARKET_OPEN_HOUR * 60 + MARKET_OPEN_MINUTE;
+            const afterHoursClose = AFTER_HOURS_CLOSE_HOUR * 60;
+            
+            return timeInMinutes >= marketOpen && timeInMinutes < afterHoursClose;
+        }
+
+        function updateMarketStatus() {
+            const now = new Date();
+            const day = now.getDay();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const timeInMinutes = hours * 60 + minutes;
+            
+            const marketOpen = MARKET_OPEN_HOUR * 60 + MARKET_OPEN_MINUTE;
+            const marketClose = MARKET_CLOSE_HOUR * 60;
+            const afterHoursClose = AFTER_HOURS_CLOSE_HOUR * 60;
+            
+            let statusText = '';
+            let statusClass = '';
+            
+            if (day === 0 || day === 6) {
+                statusText = 'Market Closed (Weekend)';
+                statusClass = 'closed';
+            }
+            else if (timeInMinutes >= marketOpen && timeInMinutes < marketClose) {
+                statusText = 'Market Open';
+                statusClass = 'open';
+            }
+            else if (timeInMinutes >= marketClose && timeInMinutes < afterHoursClose) {
+                statusText = 'Market Closed';
+                statusClass = 'closed';
+            }
+            else {
+                statusText = 'Market Closed';
+                statusClass = 'closed';
+            }
+            
+            document.getElementById('dow-status').textContent = statusText;
+            document.getElementById('dow-status').className = 'market-status ' + statusClass;
+            
+            document.getElementById('sp500-status').textContent = statusText;
+            document.getElementById('sp500-status').className = 'market-status ' + statusClass;
+        }
+
+        function incrementApiCall(count = 1, apiType = 'finnhub') {
+            const currentDate = new Date().toDateString();
+            if (currentDate !== lastResetDate) {
+                finnhubCallsToday = 0;
+                coingeckoCallsToday = 0;
+                lastResetDate = currentDate;
+            }
+            
+            if (apiType === 'finnhub') {
+                finnhubCallsToday += count;
+            } else if (apiType === 'coingecko') {
+                coingeckoCallsToday += count;
+            }
+            
+            updateApiStats();
+        }
+
+        function updateApiStats() {
+            const statsElement = document.getElementById('apiStats');
+            
+            statsElement.innerHTML = `
+                <div>Finnhub: <span style="color: #00b4d8">${finnhubCallsToday}</span> calls today</div>
+                <div>CoinGecko: <span style="color: #f7931a">${coingeckoCallsToday}</span> calls today</div>
+            `;
+        }
+
+        // ============================================
+        // SHARED UTILITY FUNCTIONS
+        // ============================================
+
+        function updateAssetCard(id, price, change, isStock = false) {
+            const card = document.getElementById(id);
+            const priceElement = card.querySelector('.asset-price');
+            const changeElement = card.querySelector('.asset-change');
+
+            let formattedPrice;
+            if (isStock) {
+                formattedPrice = '$' + price.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            } else {
+                formattedPrice = '$' + price.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            priceElement.textContent = formattedPrice;
+	    priceElement.classList.remove('loading');
+
+            const isPositive = change >= 0;
+            const formattedChange = (isPositive ? '+' : '') + change.toFixed(2) + '%';
+            
+            changeElement.textContent = formattedChange;
+            changeElement.className = 'asset-change ' + (isPositive ? 'positive' : 'negative');
+            
+            // Calculate and display dollar change
+            const dollarChangeElement = card.querySelector('.dollar-change');
+            if (dollarChangeElement) {
+                const dollarChange = (change / 100) * price / (1 + change / 100);
+                const formattedDollarChange = (isPositive ? '+' : '') + '$' + Math.abs(dollarChange).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                dollarChangeElement.textContent = formattedDollarChange;
+                dollarChangeElement.style.color = isPositive ? '#00ff88' : '#ff4444';
+            }
+        }
+
+        function showError(id, message) {
+            const card = document.getElementById(id);
+            const priceElement = card.querySelector('.asset-price');
+            priceElement.innerHTML = `<div class="error-message">${message}</div>`;
+            priceElement.classList.remove('loading');
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit',
+                timeZone: 'America/Chicago'
+            });
+            document.getElementById('lastUpdate').textContent = `Last updated: ${timeString} CT`;
+        }
+
+        function fetchAllData() {
+            fetchCryptoPrices();
+            fetchETFPrices();
+            updateLastUpdateTime();
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        if (checkApiKey()) {
+            fetchAllData();
+            setInterval(fetchCryptoPrices, CRYPTO_UPDATE_INTERVAL);
+            setInterval(fetchETFPrices, ETF_UPDATE_INTERVAL);
+            setInterval(updateLastUpdateTime, 1000);
+            setInterval(updateMarketStatus, 60000);
+        } else {
+            // Still update crypto and time even without API key
+            fetchCryptoPrices();
+            setInterval(fetchCryptoPrices, CRYPTO_UPDATE_INTERVAL);
+            setInterval(updateLastUpdateTime, 1000);
+        }
+    </script>
+</body>
+</html>
